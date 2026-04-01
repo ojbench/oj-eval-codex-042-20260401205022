@@ -95,6 +95,34 @@ private:
         return head;
     }
 
+    // Helper: locate using fast search list to achieve logarithmic hops
+    Node* locate_node_by_code_fast(int code) const {
+        if (!head) return nullptr;
+        if (code <= head->bound) return head;
+        if (fast_search_list_size <= 0) return locate_node_by_code_linear(code);
+
+        Node* cur = head;
+        // Repeat level descent until next node meets condition
+        int guard = fast_search_list_size + 2; // avoid pathological loops
+        while (guard-- > 0) {
+            for (int k = fast_search_list_size - 1; k >= 0; --k) {
+                Node* nxt = cur->fast_search_list ? cur->fast_search_list[k] : nullptr;
+                if (!nxt) continue;
+                if (nxt->bound <= cur->bound) continue; // wrapped, skip
+                if (nxt->bound < code) cur = nxt;
+            }
+            Node* candidate = cur->next;
+            if (candidate && candidate->bound >= code && candidate->bound > cur->bound) return candidate;
+            if (cur->bound >= code) return cur;
+            // Otherwise continue another iteration from current position
+        }
+        // As an ultimate fallback, linear scan forward without wrapping
+        Node* it = cur->next;
+        while (it && it->bound > cur->bound && it->bound < code) it = it->next;
+        if (it && it->bound >= code) return it;
+        return head;
+    }
+
 public:
     explicit SpeedCircularLinkedList(std::vector<int> node_bounds) {
         list_size = static_cast<int>(node_bounds.size());
@@ -136,7 +164,7 @@ public:
     void put(std::string str, T value) {
         int code = GetHashCode(str);
         // Please do not modify the line above
-        Node* target = locate_node_by_code_linear(code);
+        Node* target = locate_node_by_code_fast(code);
         if (target) {
             target->kv_map[str] = value;
         }
@@ -146,7 +174,7 @@ public:
         int code = GetHashCode(str);
         // Please do not modify the line above
 
-        Node* target = locate_node_by_code_linear(code);
+        Node* target = locate_node_by_code_fast(code);
         if (target) {
             auto it = target->kv_map.find(str);
             if (it != target->kv_map.end()) return it->second;
@@ -167,4 +195,3 @@ public:
 };
 
 #endif // SPEEDCIRCULARLIST_SOLUTION_H
-
